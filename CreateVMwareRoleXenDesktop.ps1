@@ -1,52 +1,56 @@
 <#
 .SYNOPSIS  
-	Configures a Security Role in VMware vSphere for XenDesktop
+	Configures a Security Role in VMware vSphere for XenDesktop/XenApp
 .DESCRIPTION  
-	Configures a Security Role in VMware vSphere for XenDesktop
+	Configures a Security Role in VMware vSphere for XenDesktop/XenApp and assign it to an (AD) user or group
 .NOTES  
 	File Name  : CreateVMwareRoleXenDesktop.ps1
-	Author     : John Billekens - john@j81.nl
+	Author     : John Billekens
 	Requires   : Powershell
+	             Permissions on vCenter to create role and assign a user / group
 	             .\CreateVMwareRoleXenDesktop.ps1
 .LINK
 	http://blog.j81.nl
 .PARAMETER vCenterServer
 	Specify the vCenter Server FQDN
-	
-	.\CtxVdContinuousShutdown.ps1 -vCenterServer "vCenter01.domain.local"
-	Default: "localhost"
+ 
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -vCenterServer "vCenter01.domain.local"
+					 
 .PARAMETER XenDesktopRoleName
 	Specify name of the new role in vCenter
-	
-	.\CtxVdContinuousShutdown.ps1 -XenDesktopRoleName "XenDesktop Service"
-	Default: "XenDesktop Service"
-.PARAMETER AssignServiceAccount
+ 
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -XenDesktopRoleName "Citrix Role"
+.PARAMETER AssignXDServiceAccountOrGroupOrGroup
+							   
 	Assign a Service Account (must be specified seperately) to the newly created Role.
-	
-	.\CtxVdContinuousShutdown.ps1 -AssignServiceAccount
-	Default: $True (Will be set to false if no Service Account is specified)
-.PARAMETER XDServiceAccount
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -AssignXDServiceAccountOrGroupOrGroup
+.PARAMETER XDServiceAccountOrGroup
+																		 
+						   
 	Specify the ServiceAccount "DOMAIN\ServiceAccount"
-    If this account must me assigned to the newly created group, specify the -AssignServiceAccount option
-	
-	.\CtxVdContinuousShutdown.ps1 -XDServiceAccount "DOMAIN\ServiceAccount" -AssignServiceAccount
-	Default: -empty-
+    If this account must me assigned to the newly created group, specify the -AssignXDServiceAccountOrGroupOrGroup option
+ 
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -XDServiceAccountOrGroup "DOMAIN\ServiceAccount" -AssignXDServiceAccountOrGroupOrGroup
 .EXAMPLE
-	.\CreateVMwareRoleXenDesktop.ps1 -vCenterServer "vCenter01.domain.local" -XDServiceAccount "DOMAIN\ServiceAccount" -AssignServiceAccount
+	Create a Role with privileges and assign "DOMAIN\ServiceAccount" to that newly created role
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -vCenterServer "vCenter01.domain.local" -XDServiceAccountOrGroup "DOMAIN\ServiceAccount" -AssignXDServiceAccountOrGroupOrGroup
+.EXAMPLE
+	Use the aliasses to assign "DOMAIN\ADGroup" to the newly created Role
+	C:\ PS> .\CreateVMwareRoleXenDesktop.ps1 -vCenterServer "vCenter01.domain.local" -Group "DOMAIN\ADGroup" -Assign
 #>
 
 [CmdletBinding()]
 param(
 	[Parameter(Mandatory=$false)][string]$vCenterServer = "localhost",
-	[Parameter(Mandatory=$false)][string]$XDServiceAccount = $null,
-	[Parameter(Mandatory=$false)][switch]$AssignServiceAccount = $true,
-	[Parameter(Mandatory=$false)][string]$XenDesktopRoleName = "XenDesktop Service"
+	[Alias("Account","Group")][Parameter(Mandatory=$false)][string]$XDServiceAccountOrGroupOrGroup = $null,
+	[Alias("Assign")][Parameter(Mandatory=$false)][switch]$AssignXDServiceAccountOrGroupOrGroup,
+	[Alias("Role","Name")][Parameter(Mandatory=$false)][string]$XenDesktopRoleName = "Citrix Services"
 )
 
 # Script
 
-if ($XDServiceAccount -eq $null) {
-    $AssignServiceAccount = $false
+if ($XDServiceAccountOrGroupOrGroup -eq $null) {
+    $AssignXDServiceAccountOrGroupOrGroup = $false
 }
 
 #Add VMware PowerCLI Snapin
@@ -119,11 +123,11 @@ try {
     Write-Host -ForegroundColor Green "Done!"
 }
 
-if ($AssignServiceAccount) {
-    Write-Host -NoNewline "Assigning permissions to `"$XDServiceAccount`"... "
+if ($AssignXDServiceAccountOrGroupOrGroup) {
+    Write-Host -NoNewline "Assigning permissions to `"$XDServiceAccountOrGroupOrGroup`"... "
     try {
 	    $oRootFolder = Get-Folder -NoRecursion
-    	$oPermission = New-VIPermission -Entity $oRootFolder -Principal "$XDServiceAccount" -Role "XenDesktop Service" -Propagate:$true
+    	$oPermission = New-VIPermission -Entity $oRootFolder -Principal "$XDServiceAccountOrGroupOrGroup" -Role "$XenDesktopRoleName" -Propagate:$true
     } catch {
         Write-Host -ForegroundColor Red "Error!"
         Exit(1)
